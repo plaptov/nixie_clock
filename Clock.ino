@@ -91,6 +91,7 @@ constexpr uint8_t TOTAL_SETTING_3_VALUES = 3;
 int16_t delta_hue[4] = { 0, 0, 0, 0 };
 uint8_t digit_brightness[4] = { 255, 255, 255, 255 };
 uint8_t digit_previous_brightness[4] = { 255, 255, 255, 255 };
+uint8_t max_brightness = 255;
 
 // Animation variables
 
@@ -125,6 +126,32 @@ uint32_t previous_digit_animation_running_led_time = 0;
 constexpr float FADE_ANIMATION_RATE_MS = 3000.0; // 3 sec
 uint32_t previous_fade_animation_time[4] = { 0, 0, 0, 0 };
 float fade_animation_timer[4] = { 0, 0, 0, 0 };
+uint8_t brightness_by_hour[24] = {
+    20,  // 0
+    10, // 1
+    10, // 2
+    10, // 3
+    10, // 4
+    30, // 5
+    50, // 6
+    150, // 7
+    255, // 8
+    255, // 9
+    255, // 10
+    255, // 11
+    255, // 12
+    255, // 13
+    255, // 14
+    255, // 15
+    255, // 16
+    255, // 17
+    255, // 18
+    255, // 19
+    230, // 20
+    150, // 21
+    50, // 22
+    30, // 23
+};
 
 // Auxiliary
 
@@ -135,12 +162,14 @@ uint16_t degree_hue_to_uint16_hue(int16_t degree) {
 // CLOCK
 
 void read_time() {
+    uint8_t previous_hour = current_hour;
     clock.read();
     current_hour = clock.getHour();
     current_minute = clock.getMinute();
 #ifdef TIME_SOURCE_MCU
     set_volatile_data();
 #endif
+    max_brightness = brightness_by_hour[current_hour];
 }
 
 void read_ram_data() {
@@ -339,7 +368,7 @@ void dot_handler() {
     case WORKING_MODE_CLOCK:
         if (dot_blinking_state) {
             dot_color = nth_preset_color(current_setting_1_value);
-            dot.setPixelColor(0, dot_color);
+            dot.setPixelColor(0, max_brightness, max_brightness, max_brightness, max_brightness);
         } else {
             dot.setPixelColor(0, 0);
         }
@@ -455,15 +484,15 @@ void animation_fade_handler() {
     
     for (uint8_t i = 0; i < 4; i++) {
         float a = fade_wave(fade_animation_timer[i]);
-        digit_brightness[i] = 255 * a;
-        digit_previous_brightness[i] = 255 * (1 - a);
+        digit_brightness[i] = max_brightness * a;
+        digit_previous_brightness[i] = max_brightness * (1 - a);
     }
 }
 
 void matrix_handler() {
     matrix.clear();
 
-    memset(digit_brightness, 255, 4 * sizeof(digit_brightness[0]));
+    memset(digit_brightness, max_brightness, 4 * sizeof(digit_brightness[0]));
 
     // Choose digits
 
@@ -685,7 +714,7 @@ void setup() {
     dot.begin();
     matrix.begin();
     dot.clear();
-    dot.setBrightness(50);
+    dot.setBrightness(8);
     matrix.clear();
     
 #ifdef TIME_SOURCE_MCU
